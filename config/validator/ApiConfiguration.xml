@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- file generated with AI assistance: Claude Code - 2026-09-30 21:22:22 UTC -->
+<!--
+    Validation rules the neuron-ai-bundle adds to the vendor entity of
+    dmstr/api-configuration-bundle. Prepended to framework.validation.mapping.paths
+    by DmstrNeuronAiBundle::prependExtension().
+-->
+<constraint-mapping xmlns="http://symfony.com/schema/dic/constraint-mapping"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://symfony.com/schema/dic/constraint-mapping https://symfony.com/schema/dic/constraint-mapping/constraint-mapping-1.0.xsd">
+    <class name="Dmstr\ApiConfiguration\Entity\ApiConfiguration">
+        <!-- Names of mcp connections are unique among mcp connections. -->
+        <constraint name="Dmstr\NeuronAiBundle\Validator\McpConnectionNameUnique"/>
+        <!-- Names of provider connections (ollama, anthropic) are unique across both types. -->
+        <constraint name="Dmstr\NeuronAiBundle\Validator\ProviderConnectionNameUnique"/>
+    </class>
+</constraint-mapping>

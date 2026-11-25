@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Judge verdict",
+  "description": "The answer of the AI judge on one evaluation result: how well the actual answer matches the expected answer, why, and what should change in the data or the prompt.",
+  "type": "object",
+  "required": ["verdict", "reasoning", "suggestions"],
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["pass", "mostly_pass", "mostly_fail", "fail"],
+      "description": "pass: the answer is correct and complete; mostly_pass: correct with minor gaps; mostly_fail: substantial errors or omissions; fail: wrong, missing or misleading."
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "Why the verdict was given, comparing the actual with the expected answer."
+    },
+    "suggestions": {
+      "type": "array",
+      "description": "Improvements; empty when nothing should change.",
+      "items": {
+        "type": "object",
+        "required": ["type", "category", "description", "action", "priority"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["data", "prompt"],
+            "description": "data: the knowledge base (documents, collections, tools) lacks or misstates something; prompt: the agent's instructions should change."
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Short label for grouping, e.g. missing-document or answer-format."
+          },
+          "description": {
+            "type": "string",
+            "description": "What is wrong or missing."
+          },
+          "action": {
+            "type": "string",
+            "description": "What to do about it."
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["low", "medium", "high"]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

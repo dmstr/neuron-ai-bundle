@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MCP tool catalogue scan",
+  "description": "Mirrors the tools of all active mcp connections, or only of the connection given as apiConfiguration.",
+  "type": "object",
+  "properties": {
+    "apiConfiguration": {
+      "type": "string",
+      "format": "iri-reference",
+      "title": "MCP connection",
+      "description": "IRI of an active mcp connection; its UUID or its name (without spaces) is accepted as well. Omit or leave empty to scan all active connections.",
+      "x-collection": "/api/admin/api_configurations?type=mcp&active=true",
+      "x-label-property": "name"
+    }
+  },
+  "additionalProperties": false
+}

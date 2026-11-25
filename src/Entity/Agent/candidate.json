@@ -1,0 +1,396 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent candidate",
+  "description": "Editable configuration of an agent, the candidate for its next version. It takes effect only when it is published: conversations and agent chats run on the current published version, so saving the candidate changes nothing until `POST /agents/{id}/publish`. PATCH replaces the candidate as a whole; missing keys take the defaults below. Only the structure is checked here; references (model, collections, MCP connections and tools, schemas, languages) are resolved and checked when the candidate is published. A published version stores the same shape with resolved references.",
+  "x-summary": "Editable settings for the next version of the agent. Nothing changes until you publish.",
+  "type": "object",
+  "properties": {
+    "instructions": {
+      "type": "object",
+      "x-format": "nav-horizontal",
+      "additionalProperties": { "type": "string", "x-format": "textarea" },
+      "default": {},
+      "title": "Instructions",
+      "description": "System instructions per language tag, e.g. {\"de\": \"…\"}. Publishing requires an entry for `defaultLanguage` and allows only tags from `languages`. Placeholders `{{name}}` are filled at every turn with the start parameters (`variables`) and the system values `date` (today, UTC), `language` (the effective tag) and `agentName`; a placeholder left unfilled answers 422.",
+      "x-summary": "What the agent is told to do, per language. Required for the default language."
+    },
+    "model": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "default": null,
+      "title": "Model",
+      "description": "Reference to the chat model, an entry of the model catalogue (**ProviderModel**): IRI `/api/refs/provider_models/<uuid>` or full or partial UUID, not a model name. The entry names its provider connection, so there is no connection key. Stored as the full UUID of the entry when publishing. Required to publish, there is no default model; the publish checks that the entry is available, that its connection is active and of type `ollama` or `anthropic`, that the catalogue does not know the model to lack `completion`, and that the connection still offers the model (live check).",
+      "x-summary": "The chat model, picked from the model list. Required to publish."
+    },
+    "collections": {
+      "type": "array",
+      "x-format": "table",
+      "items": { "type": "string", "minLength": 1, "x-titleHidden": true },
+      "default": [],
+      "title": "Knowledge collections",
+      "description": "Collection references (UUID, IRI or name); stored as full UUIDs when publishing.",
+      "x-summary": "Knowledge collections the agent searches for answers."
+    },
+    "retrievalDepth": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "default": 10,
+      "title": "Retrieval depth",
+      "description": "Chunks retrieved per turn (before the context cap). Null: the configured `store.top_k`, which versions published before this key existed keep.",
+      "x-summary": "How many chunks are fetched per question, before the context limit applies."
+    },
+    "hybrid": {
+      "type": "boolean",
+      "default": false,
+      "title": "Hybrid retrieval",
+      "description": "True: every collection is searched by keywords (full-text search in the collection's `keywordLanguage`) and by vector similarity, and all lists are fused by weighted reciprocal rank fusion (k = 60) before the cut to the retrieval depth; the `score` of a source is then the fusion score, not a cosine similarity. False: vector similarity only. A version without this key searches vector-only.",
+      "x-summary": "Search by keywords and by meaning, and combine both result lists."
+    },
+    "hybridWeight": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.5,
+      "title": "Hybrid keyword weight",
+      "description": "Share of the keyword lists in the fusion of hybrid retrieval, 0..1; the vector lists weigh 1 minus this value. 0 ranks by vector search only, 1 by keyword search only. Ignored without `hybrid`.",
+      "x-summary": "Keyword share in the combined ranking: 0 = meaning only, 1 = keywords only."
+    },
+    "contextMaxChunks": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 10,
+      "title": "Context chunk limit",
+      "description": "Retrieved chunks sent to the model per turn at most, in ranking order. A version without this key uses the bundle's `turn.context_max_chunks`.",
+      "x-summary": "How many of the fetched chunks are sent to the model."
+    },
+    "contextMaxChars": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 15000,
+      "title": "Context character limit",
+      "description": "Characters of the retrieved chunks sent per turn at most, applied before the neighbour expansion; a first chunk longer than this is shortened to it. A version without this key uses the bundle's `turn.context_max_chars`.",
+      "x-summary": "Maximum characters of retrieved text sent to the model per question."
+    },
+    "contextExpansionMaxChars": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 6000,
+      "title": "Neighbour expansion budget",
+      "description": "Characters per turn for the passages before and after a chunk from an uploaded document, in addition to `contextMaxChars`; a passage that does not fit is skipped, never cut. 0: no expansion. A version without this key expands nothing.",
+      "x-summary": "Extra characters taken from the text before and after a found chunk (uploaded documents). 0 = none."
+    },
+    "contextInstructions": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "x-format": "textarea" },
+      "default": {},
+      "title": "Context instructions",
+      "description": "Instruction in front of the retrieved context per language tag, e.g. {\"de\": \"…\"}, replacing the bundle's `turn.context_instruction`; used literally, without placeholders. Only tags from `languages` are allowed; a language without an entry takes the entry of `defaultLanguage`, then the bundle default. A version without this key keeps the legacy instruction text.",
+      "x-summary": "Optional sentence placed in front of the retrieved text, per language. The bundle default applies if unset."
+    },
+    "mcpTools": {
+      "type": "array",
+      "x-format": "nav-horizontal",
+      "x-titleTemplate": "{{ value.name || 'new tool' }}",
+      "items": {
+        "type": "object",
+        "properties": {
+          "connection": {
+            "type": "string",
+            "minLength": 1,
+            "description": "MCP connection reference (IRI, full or partial UUID, name); stored as a full UUID when publishing."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Tool name from the MCP tool catalogue of the connection; unique across all entries."
+          },
+          "terminal": {
+            "type": "boolean",
+            "default": false,
+            "description": "A call of this tool ends the turn: its result becomes the answer (terminal tools). Applied to every turn on this version; a caller cannot add terminal tools."
+          }
+        },
+        "required": ["connection", "name"],
+        "additionalProperties": false
+      },
+      "default": [],
+      "title": "MCP tools",
+      "description": "Tools the agent may call, each one tool of one MCP connection.",
+      "x-summary": "Tools from MCP servers that the agent may call."
+    },
+    "artifactTools": {
+      "type": "boolean",
+      "default": false,
+      "title": "Artifact tools",
+      "description": "True: in every turn of a conversation created with this agent, the model gets the file tools `read_file`, `grep_file_content`, `glob_path`, `write_file` and `edit_file` on the artifact folder of the conversation owner, so a later conversation of the same user finds and edits the files again; another user never sees them. Each conversation has its working folder `<conversationId>/` under the user's artifact root, reading, searching and listing (`glob_path`) cover the whole root. The write tools `write_file` and `edit_file` are offered only when the conversation owner holds the permission `neuronai:artifact:write`; without it the agent gets the read tools only. `bash`, `delete_file` and `parse_file` are never offered. Anonymous conversations, evaluation and replay conversations, the judge and the stateless `POST /agents/{id}/chat` (no conversation, so no working folder) never get artifact tools. Publishing requires a model with the tools capability, and no `mcpTools` entry may carry one of the five names. A version without this key offers no artifact tools.",
+      "x-summary": "Lets the model read, search, write and edit files in the user's artifact folder."
+    },
+    "responseSchema": {
+      "type": ["object", "null"],
+      "default": null,
+      "title": "Response schema",
+      "description": "JSON schema every answer must follow (draft 2020-12 unless it declares its own `$schema`).",
+      "x-summary": "Optional JSON schema that every answer must follow."
+    },
+    "startSchema": {
+      "type": ["object", "null"],
+      "default": null,
+      "title": "Start schema",
+      "description": "JSON schema (`type: object`) of the start parameters (`variables`) of a conversation or an agent chat; the given variables are validated against it, and null means no variable may be given.",
+      "x-summary": "Optional JSON schema for the start parameters (variables) of a conversation."
+    },
+    "startMessage": {
+      "type": ["object", "null"],
+      "additionalProperties": { "type": "string", "minLength": 1, "x-format": "textarea" },
+      "default": null,
+      "title": "Start message",
+      "description": "First user message per language tag; null (default) means the conversation waits for the user. When set, creating a conversation with this agent records the message as the first user message and starts the first turn at once: it runs after the 201 answer in the same request, and the client follows it with `GET /conversations/{id}/stream` (the turn holds the conversation's turn lock before the answer is sent). Publishing requires an entry for `defaultLanguage`; placeholders as in `instructions`.",
+      "x-summary": "Optional first user message per language; the conversation starts right away."
+    },
+    "modelOptions": {
+      "type": "object",
+      "properties": {
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "title": "Temperature",
+          "description": "Sampling temperature. Ollama (0 to 2) and Anthropic models that still take sampling (0 to 1, not together with topP); current Claude models (Opus 4.7 and later, Fable, Sonnet 5 and later) reject it.",
+          "x-summary": "Randomness of the answers: lower = more predictable. Newer Claude models reject it."
+        },
+        "topP": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "title": "Top P",
+          "description": "Nucleus sampling: only the tokens within this cumulative probability are considered. Same models as `temperature`.",
+          "x-summary": "Only the most likely tokens up to this combined probability are considered."
+        },
+        "topK": {
+          "type": "integer",
+          "minimum": 1,
+          "title": "Top K",
+          "description": "Only the K most likely tokens are considered. Same models as `temperature`.",
+          "x-summary": "Only the K most likely next tokens are considered."
+        },
+        "maxTokens": {
+          "type": "integer",
+          "minimum": 1,
+          "title": "Maximum output tokens",
+          "description": "Output token bound per provider call (Ollama `num_predict`, Anthropic `max_tokens`). Without it: Ollama's default, for Anthropic the connection's `max_tokens`, else 8192.",
+          "x-summary": "Maximum length of one model answer, in tokens."
+        },
+        "repeatPenalty": {
+          "type": "number",
+          "minimum": 0,
+          "title": "Repeat penalty",
+          "description": "Ollama only: penalty for repeated tokens (1 = none).",
+          "x-summary": "Ollama only: discourages repeated tokens (1 = no penalty)."
+        },
+        "seed": {
+          "type": "integer",
+          "title": "Seed",
+          "description": "Ollama only: sampling seed, for reproducible answers.",
+          "x-summary": "Ollama only: fixed seed for reproducible answers."
+        },
+        "numCtx": {
+          "type": "integer",
+          "minimum": 1,
+          "title": "Context window",
+          "description": "Ollama only: context window of every request in tokens (`num_ctx`); omitted = the model's Modelfile `num_ctx` (`defaultContextLength` in the model catalogue), else the server default. Must cover instructions, tool definitions, context and history.",
+          "x-summary": "Ollama only: context window in tokens. Must fit instructions, tools, context and history."
+        },
+        "think": {
+          "type": "boolean",
+          "title": "Thinking",
+          "description": "Ollama only, for models with the capability `thinking`: whether the model thinks before it answers.",
+          "x-summary": "Ollama only: whether a model with thinking support thinks before it answers."
+        },
+        "effort": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "xhigh", "max"],
+          "title": "Effort",
+          "description": "Anthropic only: how much the model thinks and spends per answer (`output_config.effort`); not every model offers every level.",
+          "x-summary": "Anthropic only: how much the model thinks and spends per answer."
+        },
+        "thinkingDisplay": {
+          "type": "string",
+          "enum": ["omitted", "summarized"],
+          "title": "Thinking display",
+          "description": "Anthropic only, for models with adaptive thinking: turns adaptive thinking on with this display (`summarized` returns a summary of the reasoning, `omitted` none).",
+          "x-summary": "Anthropic only: adaptive thinking, with the reasoning summarized or omitted."
+        }
+      },
+      "additionalProperties": false,
+      "default": {},
+      "title": "Model options",
+      "description": "Options of every provider call of a turn on this version (wired, not verified against live providers); a missing option is the provider's default. Which options a model accepts depends on its provider and, when the model catalogue knows the model, on the model itself; the publish checks the options against that. `GET /api/refs/provider_models/{id}/options_schema` returns the schema for one catalogue model.",
+      "x-summary": "Settings sent with every model call, such as temperature and maximum output tokens."
+    },
+    "maxToolCalls": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "default": null,
+      "title": "Tool-call bound",
+      "description": "Tool calls per turn before the model is forced to answer; applied at each turn of a conversation created with this agent and of an agent chat. Null: the settings default, then the bundle default. A request may only lower it.",
+      "x-summary": "Tool calls allowed per turn before the model has to answer."
+    },
+    "maxUserTurns": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "default": null,
+      "title": "User-turn bound",
+      "description": "User turns a conversation created with this agent accepts; applied at the creation of the conversation, which pins the current version. Null: the settings default, else unlimited. A creation request may only lower it. The last allowed turn is answered under a forced close and closes the conversation.",
+      "x-summary": "User messages a conversation accepts; the last one closes it."
+    },
+    "languages": {
+      "type": "array",
+      "x-format": "table",
+      "items": { "type": "string", "minLength": 1, "maxLength": 16, "x-titleHidden": true },
+      "minItems": 1,
+      "uniqueItems": true,
+      "default": ["de"],
+      "title": "Languages",
+      "description": "Language tags the agent answers in, e.g. `de`, `en-GB`.",
+      "x-summary": "Languages the agent answers in, e.g. de, en-GB."
+    },
+    "defaultLanguage": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "default": "de",
+      "title": "Default language",
+      "description": "Language tag used when a conversation or an agent chat names none; must be one of `languages`. Its instructions also apply to a language without an instructions text of its own.",
+      "x-summary": "Language used when none is requested. Must be one of the languages."
+    },
+    "rules": {
+      "type": "array",
+      "x-format": "table-object",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": ["string", "null"],
+            "maxLength": 64,
+            "default": null,
+            "description": "Name of the rule, reported with its outcome."
+          },
+          "match": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": ["keywords", "pattern", "language"],
+                "description": "`keywords`: any of the keywords occurs in the user input; `pattern`: the regular expression matches the user input; `language`: the effective language of the turn is not one of `languages`."
+              },
+              "keywords": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1, "maxLength": 200 },
+                "minItems": 1,
+                "description": "Type `keywords`: matched literally and case-insensitively (Unicode simple case folding: `Ä` matches `ä`, `SS` does not match `ß`); any keyword matches."
+              },
+              "wholeWord": {
+                "type": "boolean",
+                "default": true,
+                "description": "Type `keywords`: true matches a keyword only as a whole word (not preceded or followed by a letter or digit), false anywhere in the input."
+              },
+              "pattern": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000,
+                "description": "Type `pattern`: PCRE pattern without delimiters, matched in UTF-8 mode against the whole user input; must compile when publishing."
+              },
+              "flags": {
+                "type": "string",
+                "pattern": "^[imsx]*$",
+                "default": "",
+                "description": "Type `pattern`: PCRE modifiers, any of `i`, `m`, `s` and `x`."
+              },
+              "languages": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1, "maxLength": 16 },
+                "minItems": 1,
+                "uniqueItems": true,
+                "description": "Type `language`: the allowed language tags, each one of the agent's `languages`; the rule matches a turn whose effective language is not in this list."
+              }
+            },
+            "required": ["type"],
+            "allOf": [
+              {
+                "if": { "properties": { "type": { "const": "keywords" } }, "required": ["type"] },
+                "then": { "required": ["keywords"], "propertyNames": { "enum": ["type", "keywords", "wholeWord"] } }
+              },
+              {
+                "if": { "properties": { "type": { "const": "pattern" } }, "required": ["type"] },
+                "then": { "required": ["pattern"], "propertyNames": { "enum": ["type", "pattern", "flags"] } }
+              },
+              {
+                "if": { "properties": { "type": { "const": "language" } }, "required": ["type"] },
+                "then": { "required": ["languages"], "propertyNames": { "enum": ["type", "languages"] } }
+              }
+            ],
+            "description": "What the rule tests; the fields besides `type` depend on the type."
+          },
+          "outcome": {
+            "enum": ["continue", "answer", "refuse"],
+            "description": "`continue`: evaluation stops and the turn runs as usual; `answer`: the turn is answered with the template text; `refuse`: the turn is refused with the template text. Neither runs retrieval or a model call."
+          },
+          "template": {
+            "type": ["string", "null"],
+            "default": null,
+            "description": "Name of an entry of `templates`; required for `answer` and `refuse`, null or absent for `continue`. A reserved template name cannot be used."
+          }
+        },
+        "required": ["match", "outcome"],
+        "additionalProperties": false
+      },
+      "default": [],
+      "title": "Rules",
+      "description": "Pre-answer rules, evaluated in list order against the user input of every turn before retrieval and before any model call; the first matching rule decides, and without a match the turn runs as usual. A regular expression that fails at runtime (e.g. backtrack limit) counts as no match and is logged.",
+      "x-summary": "Fixed answers or refusals matched against the user's text before any model call."
+    },
+    "templates": {
+      "type": "object",
+      "x-format": "nav-horizontal",
+      "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": { "minLength": 1, "maxLength": 16 },
+        "additionalProperties": { "type": "string", "x-format": "textarea" }
+      },
+      "default": {},
+      "title": "Output templates",
+      "description": "Texts per template name and language tag, e.g. {\"refusal\": {\"de\": \"…\", \"en\": \"…\"}}. Publishing requires an entry for `defaultLanguage` and allows only tags from `languages`; a turn uses the text of its effective language, else the default-language text. Placeholders `{{name}}`: `date`, `language`, `agentName`, the properties of `startSchema` and, in templates used by rules, `rule` (the rule name) and `outcome`; a value that is not supplied renders as empty text. The names `frame`, `limitReason`, `turnLimitReason`, `forcedCloseFallback`, `injectionRefusal` and `unanswerableRefusal` are reserved slots.",
+      "x-summary": "Fixed texts such as refusals, per name and language. The default language is required."
+    },
+    "injectionGuard": {
+      "type": "boolean",
+      "default": false,
+      "title": "Prompt-injection guard",
+      "description": "True: before retrieval (after the pre-answer rules), the version's model check the current user message for a prompt-injection attempt; a detected attempt is refused with the template `injectionRefusal` (record kind `injection_refusal`) without retrieval and without an answer call. A failed check lets the turn continue. Publishing requires an `injectionRefusal` text for `defaultLanguage`. A version without this key runs no guard.",
+      "x-summary": "A model check for prompt-injection attempts before retrieval; refuses without answering."
+    },
+    "answerabilityCheck": {
+      "type": "boolean",
+      "default": false,
+      "title": "Answerability check",
+      "description": "True: after retrieval and before the answer, the version's model decide whether the retrieved context answers the question (with the previous user question for follow-ups); it refuses only when a strict majority of the `answerabilityVotes` votes says unanswerable (a failed vote counts as answerable), and an unanswerable question is refused with the template `unanswerableRefusal` (record kind `unanswerable_refusal`) without an answer call. Inactive for a version without collections. A failed check lets the turn continue. Publishing requires an `unanswerableRefusal` text for `defaultLanguage`. A version without this key runs no check.",
+      "x-summary": "A judge decides whether the found text answers the question; if not, the turn is refused."
+    },
+    "answerabilityVotes": {
+      "type": "integer",
+      "enum": [1, 3, 5, 7],
+      "default": 1,
+      "title": "Answerability votes",
+      "description": "Votes of the answerability check, odd and at most 7; all votes run, and the check refuses only when more than half of them say unanswerable. A failed vote (provider error, unparsable verdict) counts as answerable. Ignored without `answerabilityCheck`.",
+      "x-summary": "Number of judge calls (1, 3, 5 or 7); a majority decides."
+    },
+    "followUps": {
+      "type": "boolean",
+      "default": false,
+      "title": "Follow-up suggestions",
+      "description": "True: after a complete text answer, the version's model suggest follow-up questions, stored on the answer record and streamed before the end of the stream; a failure gives an empty list. A version without this key suggests none.",
+      "x-summary": "The model suggests follow-up questions under each answer."
+    }
+  },
+  "additionalProperties": false
+}

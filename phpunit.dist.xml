@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- file generated with AI assistance: Claude Code - 2026-11-25 21:50:20 UTC -->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         cacheDirectory=".phpunit.cache"
+         colors="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         failOnDeprecation="true"
+         failOnNotice="true"
+         displayDetailsOnTestsThatTriggerDeprecations="true"
+         displayDetailsOnTestsThatTriggerWarnings="true"
+         displayDetailsOnTestsThatTriggerNotices="true">
+    <testsuites>
+        <!-- No kernel, no database -->
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <!-- Boots tests/Kernel/TestKernel; tests in the group "database"
+             need the PostgreSQL server with pgvector from DATABASE_URL -->
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+    </testsuites>
+    <extensions>
+        <!-- Resets the port doubles of tests/Support/Port after every test -->
+        <bootstrap class="Dmstr\NeuronAiBundle\Tests\Support\ResetTestPortsExtension"/>
+    </extensions>
+    <php>
+        <ini name="error_reporting" value="-1"/>
+        <server name="APP_ENV" value="test"/>
+        <server name="KERNEL_CLASS" value="Dmstr\NeuronAiBundle\Tests\Kernel\TestKernel"/>
+        <server name="SHELL_VERBOSITY" value="-1"/>
+        <!-- Fake provider: no echo fallback, no chunk pacing -->
+        <env name="FAKE_PROVIDER_ECHO" value="0" force="true"/>
+        <env name="FAKE_PROVIDER_CHUNK_DELAY_MS" value="0" force="true"/>
+        <!-- Default for a local PostgreSQL with pgvector; an existing
+             environment variable (as set by the GitHub Action) takes
+             precedence -->
+        <env name="DATABASE_URL" value="postgresql://app:app@127.0.0.1:5432/neuron_ai_test?serverVersion=16&amp;charset=utf8"/>
+    </php>
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+</phpunit>

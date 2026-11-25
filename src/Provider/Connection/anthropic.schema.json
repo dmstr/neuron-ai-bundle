@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Anthropic",
+  "description": "Connection to the Anthropic Messages API (or a compatible endpoint), for chat turns. Chat requests name the connection and a model explicitly; there is no default model.",
+  "type": "object",
+  "required": ["anthropic", "type", "endpoint_type", "api_key"],
+  "properties": {
+    "anthropic": {
+      "type": "boolean",
+      "const": true,
+      "default": true,
+      "readOnly": true,
+      "description": "Identifier flag of the anthropic connection type"
+    },
+    "type": {
+      "type": "string",
+      "const": "anthropic",
+      "default": "anthropic",
+      "readOnly": true,
+      "description": "Connection type"
+    },
+    "endpoint_type": {
+      "type": "string",
+      "const": "rest",
+      "default": "rest",
+      "readOnly": true,
+      "description": "Endpoint type"
+    },
+    "api_key": {
+      "type": "string",
+      "minLength": 1,
+      "writeOnly": true,
+      "title": "API key",
+      "description": "Anthropic API key; stored encrypted and returned masked as \"********\" (send the mask or omit the key to keep the stored value)"
+    },
+    "base_url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "default": "https://api.anthropic.com/v1/",
+      "title": "Base URL",
+      "description": "Base URL of the Messages API including the version path; defaults to https://api.anthropic.com/v1/"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 8192,
+      "title": "Max output tokens",
+      "description": "Output token limit of a request when the agent version sets none; defaults to 8192"
+    },
+    "timeout": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 600,
+      "title": "Timeout (seconds)",
+      "description": "HTTP timeout of chat requests; omitted or larger than the turn deadline = the turn deadline (dmstr_neuron_ai.turn.deadline_seconds)"
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 190
+      },
+      "uniqueItems": true,
+      "title": "Models (endpoint without a Models API)",
+      "description": "Only for an endpoint without GET /models, such as Claude on Microsoft Foundry: the model or deployment names, e.g. [\"claude-sonnet-5-5\", \"claude-haiku-5-5\"]. The scan lists them as given, without a request, so the health check does not reach the endpoint either. Empty or omitted = ask the Models API"
+    },
+    "tool_models": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 190
+      },
+      "uniqueItems": true,
+      "title": "Models released for tools",
+      "description": "Models of this connection that agents with MCP tools and POST /chat with mcpConnections may use, e.g. [\"qwen3:14b\", \"gemma4:26b\"]; llama3.2 also matches llama3.2:latest. Empty or omitted = every model. Checked at agent publish and on POST /chat, after the tools capability of the model catalogue"
+    }
+  },
+  "additionalProperties": false
+}

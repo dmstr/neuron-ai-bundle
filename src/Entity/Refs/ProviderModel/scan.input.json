@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Provider model catalogue scan",
+  "description": "Mirrors the models of all active ollama and anthropic connections, or only of the connection given as apiConfiguration.",
+  "type": "object",
+  "properties": {
+    "apiConfiguration": {
+      "type": "string",
+      "format": "iri-reference",
+      "title": "Provider connection",
+      "description": "IRI of an active ollama or anthropic connection; its UUID or its name (without spaces) is accepted as well. Omit or leave empty to scan all active provider connections.",
+      "x-label-property": "name"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,23 @@
+{
+    "[judge:pass]": {
+        "answer": "{\"verdict\": \"pass\", \"reasoning\": \"The answer names the 500 operating hours and the yearly maintenance, as expected.\", \"suggestions\": [{\"type\": \"data\", \"category\": \"source-citation\", \"description\": \"The answer does not cite the maintenance manual.\", \"action\": \"Index chapter 4.2 of the maintenance manual with its title.\", \"priority\": \"low\"}, {\"type\": \"prompt\", \"category\": \"answer-format\", \"description\": \"The interval could be stated first.\", \"action\": \"Ask for the key figure in the first sentence.\", \"priority\": \"low\"}]}"
+    },
+    "[judge:mostly_pass]": {
+        "answer": "{\"verdict\": \"mostly_pass\", \"reasoning\": \"The torque is right, the re-tightening after 50 km is missing.\", \"suggestions\": [{\"type\": \"data\", \"category\": \"incomplete-document\", \"description\": \"The wheel section lacks the re-tightening note.\", \"action\": \"Add the re-tightening note to the wheel documentation.\", \"priority\": \"medium\"}, {\"type\": \"prompt\", \"category\": \"completeness\", \"description\": \"The agent stops after the first figure.\", \"action\": \"Instruct the agent to list every follow-up step.\", \"priority\": \"medium\"}]}"
+    },
+    "[judge:mostly_fail]": {
+        "answer": "```json\n{\"verdict\": \"mostly_fail\", \"reasoning\": \"Only the yearly interval is named; the operating hours are wrong.\", \"suggestions\": [{\"type\": \"data\", \"category\": \"outdated-document\", \"description\": \"An outdated manual states 400 hours.\", \"action\": \"Archive the outdated manual revision.\", \"priority\": \"high\"}, {\"type\": \"data\", \"category\": \"missing-document\", \"description\": \"The current manual is not indexed.\", \"action\": \"Index the current maintenance manual.\", \"priority\": \"high\"}, {\"type\": \"prompt\", \"category\": \"grounding\", \"description\": \"The agent answers without checking the sources.\", \"action\": \"Require an answer from retrieved sources only.\", \"priority\": \"medium\"}]}\n```"
+    },
+    "[judge:fail]": {
+        "answer": "{\"verdict\": \"fail\", \"reasoning\": \"The answer talks about the warranty instead of safety training.\", \"suggestions\": [{\"type\": \"data\", \"category\": \"missing-document\", \"description\": \"No document covers safety training.\", \"action\": \"Add the safety training instructions.\", \"priority\": \"high\"}, {\"type\": \"prompt\", \"category\": \"off-topic\", \"description\": \"The agent drifts to an unrelated topic.\", \"action\": \"Tell the agent to say when it has no information.\", \"priority\": \"high\"}]}"
+    },
+    "[judge:invalid]": {
+        "answer": "{\"verdict\": \"excellent\", \"reasoning\": \"Wrong enum value and no suggestions.\"}"
+    },
+    "[judge:not-json]": {
+        "answer": "The answer looks fine to me, I would rate it as a pass."
+    },
+    "[judge:score]": {
+        "answer": "{\"score\": 4}"
+    }
+}

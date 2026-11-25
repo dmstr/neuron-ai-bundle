@@ -1,0 +1,168 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MCP server",
+  "description": "Connection to a Model Context Protocol server (Streamable HTTP). Its tools are mirrored into the tool catalogue and offered to the chat.",
+  "type": "object",
+  "required": ["mcp", "type", "endpoint_type", "url", "transport"],
+  "properties": {
+    "mcp": {
+      "type": "boolean",
+      "const": true,
+      "default": true,
+      "readOnly": true,
+      "description": "Identifier flag of the mcp connection type"
+    },
+    "type": {
+      "type": "string",
+      "const": "mcp",
+      "default": "mcp",
+      "readOnly": true,
+      "description": "Connection type"
+    },
+    "endpoint_type": {
+      "type": "string",
+      "const": "rest",
+      "default": "rest",
+      "readOnly": true,
+      "description": "Endpoint type"
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "title": "URL",
+      "description": "MCP endpoint, e.g. https://mcp.example.org/mcp"
+    },
+    "transport": {
+      "type": "string",
+      "const": "streamable-http",
+      "default": "streamable-http",
+      "title": "Transport",
+      "description": "MCP transport; only Streamable HTTP is supported"
+    },
+    "auth_type": {
+      "type": "string",
+      "enum": ["none", "bearer", "header", "client_credentials", "forward_jwt"],
+      "default": "none",
+      "title": "Authentication",
+      "description": "none: no credentials; bearer: token sent as 'Authorization: Bearer <token>'; header: token sent in the custom header named by header_name; client_credentials: OAuth2 client credentials grant against token_url (e.g. a Keycloak service account), the access token is fetched on the first request, cached and sent as 'Authorization: Bearer <token>'; such a connection is always restricted; forward_jwt: chat turns send the JWT of the person chatting as 'Authorization: Bearer <jwt>', so the server acts as that person; catalogue scan, sync and health use the service account of scan_token_url, scan_client_id and scan_client_secret (client credentials grant); a turn without a person's JWT (replay, batch evaluation) only gets the tools whose catalogue annotation readOnlyHint is true and runs them with the scan service account"
+    },
+    "token": {
+      "type": "string",
+      "minLength": 1,
+      "writeOnly": true,
+      "title": "Token",
+      "description": "Bearer token or custom header value; stored encrypted and returned masked as \"********\" (send the mask or omit the key to keep the stored value)"
+    },
+    "header_name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9-]+$",
+      "title": "Header name",
+      "description": "Name of the custom authentication header, e.g. X-Api-Key (auth_type header only)"
+    },
+    "token_url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "title": "Token URL",
+      "description": "Token endpoint of the OAuth2 server, e.g. https://keycloak.example.org/realms/example/protocol/openid-connect/token (auth_type client_credentials only)"
+    },
+    "client_id": {
+      "type": "string",
+      "minLength": 1,
+      "title": "Client ID",
+      "description": "OAuth2 client id of the service account (auth_type client_credentials only)"
+    },
+    "client_secret": {
+      "type": "string",
+      "minLength": 1,
+      "writeOnly": true,
+      "title": "Client secret",
+      "description": "OAuth2 client secret (auth_type client_credentials only); stored encrypted and returned masked as \"********\" (send the mask or omit the key to keep the stored value)"
+    },
+    "scope": {
+      "type": "string",
+      "title": "Scope",
+      "description": "Optional space-separated OAuth2 scopes of the token request (auth_type client_credentials only)"
+    },
+    "scan_token_url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "title": "Scan token URL",
+      "description": "Token endpoint of the OAuth2 server for the scan service account, e.g. https://keycloak.example.org/realms/example/protocol/openid-connect/token (auth_type forward_jwt only)"
+    },
+    "scan_client_id": {
+      "type": "string",
+      "minLength": 1,
+      "title": "Scan client ID",
+      "description": "OAuth2 client id of the service account used for catalogue scan, sync, health and turns without a person's JWT (auth_type forward_jwt only)"
+    },
+    "scan_client_secret": {
+      "type": "string",
+      "minLength": 1,
+      "writeOnly": true,
+      "title": "Scan client secret",
+      "description": "OAuth2 client secret of the scan service account (auth_type forward_jwt only); stored encrypted and returned masked as \"********\" (send the mask or omit the key to keep the stored value)"
+    },
+    "scan_scope": {
+      "type": "string",
+      "title": "Scan scope",
+      "description": "Optional space-separated OAuth2 scopes of the scan service account's token request (auth_type forward_jwt only)"
+    },
+    "timeout": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 300,
+      "title": "Timeout (seconds)",
+      "description": "HTTP timeout per request; defaults to 30 seconds"
+    },
+    "restricted": {
+      "type": "boolean",
+      "default": false,
+      "title": "Restricted",
+      "description": "A restricted connection may only be used through agent versions or by a caller with the permission neuronai:mcp_connection:use_restricted, not named ad hoc in a chat request. Always true for auth_type client_credentials, whose service account acts for every user; optional for forward_jwt, whose turns act as the person chatting"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"auth_type": {"const": "bearer"}},
+        "required": ["auth_type"]
+      },
+      "then": {
+        "required": ["token"]
+      }
+    },
+    {
+      "if": {
+        "properties": {"auth_type": {"const": "header"}},
+        "required": ["auth_type"]
+      },
+      "then": {
+        "required": ["header_name", "token"]
+      }
+    },
+    {
+      "if": {
+        "properties": {"auth_type": {"const": "client_credentials"}},
+        "required": ["auth_type"]
+      },
+      "then": {
+        "required": ["token_url", "client_id", "client_secret"],
+        "properties": {"restricted": {"const": true}}
+      }
+    },
+    {
+      "if": {
+        "properties": {"auth_type": {"const": "forward_jwt"}},
+        "required": ["auth_type"]
+      },
+      "then": {
+        "required": ["scan_token_url", "scan_client_id", "scan_client_secret"]
+      }
+    }
+  ],
+  "additionalProperties": false
+}

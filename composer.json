@@ -1,0 +1,100 @@
+{
+    "name": "dmstr/neuron-ai-bundle",
+    "description": "Symfony bundle integrating the Neuron AI framework: provider factory (Anthropic/Ollama), embeddings, pgvector store wiring, a chat service and MCP servers as an `mcp` connection type of dmstr/api-configuration-bundle.",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "keywords": [
+        "neuron-ai",
+        "symfony",
+        "bundle",
+        "rag",
+        "mcp",
+        "anthropic",
+        "ollama"
+    ],
+    "authors": [
+        {
+            "name": "diemeisterei GmbH",
+            "homepage": "https://diemeisterei.de"
+        }
+    ],
+    "require": {
+        "php": ">=8.5",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "ext-pdo": "*",
+        "api-platform/core": "^4.4.8",
+        "dmstr/api-configuration-bundle": "^0.7",
+        "dmstr/api-platform-utils-bundle": "^0.6",
+        "dmstr/neuron-pgvector-store": "^0.1",
+        "dmstr/openapi-json-schema-bundle": "^0.5",
+        "dmstr/symfony-job-queue-bundle": "^0.6",
+        "doctrine/collections": "^2.2 || ^3.0",
+        "doctrine/dbal": "^3.8",
+        "doctrine/doctrine-bundle": "^2.14",
+        "doctrine/doctrine-migrations-bundle": "^3.4",
+        "doctrine/migrations": "^3.9",
+        "doctrine/orm": "^3.3",
+        "doctrine/persistence": "^3.1 || ^4.0",
+        "gedmo/doctrine-extensions": "^3.20",
+        "league/mime-type-detection": "^1.0",
+        "neuron-core/neuron-ai": ">=4.1.11 <4.1.17",
+        "opis/json-schema": "^2.6",
+        "phpoffice/phpspreadsheet": "^5.10",
+        "psr/clock": "^1.0",
+        "psr/log": "^1.0 || ^2.0 || ^3.0",
+        "smalot/pdfparser": "^2.12",
+        "symfony/cache": "^7.4",
+        "symfony/cache-contracts": "^3.5",
+        "symfony/clock": "^7.4",
+        "symfony/config": "^7.4",
+        "symfony/console": "^7.4",
+        "symfony/dependency-injection": "^7.4",
+        "symfony/doctrine-bridge": "^7.4",
+        "symfony/event-dispatcher": "^7.4",
+        "symfony/expression-language": "^7.4",
+        "symfony/framework-bundle": "^7.4",
+        "symfony/http-foundation": "^7.4",
+        "symfony/http-kernel": "^7.4",
+        "symfony/lock": "^7.4",
+        "symfony/messenger": "^7.4",
+        "symfony/rate-limiter": "^7.4",
+        "symfony/routing": "^7.4",
+        "symfony/scheduler": "^7.4",
+        "symfony/security-bundle": "^7.4",
+        "symfony/security-core": "^7.4",
+        "symfony/security-http": "^7.4",
+        "symfony/serializer": "^7.4",
+        "symfony/uid": "^7.4",
+        "symfony/validator": "^7.4",
+        "symfony/web-link": "^7.4",
+        "symfony/yaml": "^7.4"
+    },
+    "require-dev": {
+        "ext-pdo_pgsql": "*",
+        "dmstr/doctrine-audit-log-bundle": "^0.4",
+        "dmstr/mcp-endpoint-bundle": "^0.1",
+        "lexik/jwt-authentication-bundle": "^3.1",
+        "phpunit/phpunit": "^12.0 || ^13.0",
+        "symfony/browser-kit": "^7.4",
+        "symfony/http-client": "^7.4"
+    },
+    "suggest": {
+        "dmstr/mcp-endpoint-bundle": "Publishes the knowledge base as the MCP tools rag_list_collections and rag_search at /mcp/{slug}, limited to the collection scope of each endpoint (tools, scope resolver and services are registered only with the bundle loaded)",
+        "lexik/jwt-authentication-bundle": "JWT authentication next to capability tokens; the bundle then hides anon_ bearer values from Lexik's token extractor (the decoration is skipped without Lexik)",
+        "phpunit/phpunit": "Needed by the test helpers under src/Testing/ (FakeEmbeddingsRecorder asserts with PHPUnit); none of them is registered as a service"
+    },
+    "autoload": {
+        "psr-4": {
+            "Dmstr\\NeuronAiBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Dmstr\\NeuronAiBundle\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

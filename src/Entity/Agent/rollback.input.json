@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent rollback",
+  "description": "Makes an earlier version of this agent its current version. No version is changed.",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "title": "Version",
+      "description": "The agent version: IRI (`/api/agent_versions/<uuid>`), full UUID or partial UUID (at least 8 hex digits). A version of another agent is rejected with 422, an unknown one with 404."
+    }
+  },
+  "additionalProperties": false
+}

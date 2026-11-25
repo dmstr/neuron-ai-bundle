@@ -1,0 +1,37 @@
+[
+    {
+        "key": "a-rank-one",
+        "question": "How is the hydraulic system serviced",
+        "expectedAnswer": "Die Hydraulikpumpe wird alle 500 Betriebsstunden gewartet.",
+        "markers": ["HYDRAULIK"]
+    },
+    {
+        "key": "b-miss",
+        "question": "Which coolant does the gearbox need",
+        "expectedAnswer": "Das Getriebe braucht Kühlmittel nach Werksnorm.",
+        "markers": ["Quantenflux", "Getriebeöl"]
+    },
+    {
+        "key": "c-rank-two",
+        "question": "Where is the hydraulic filter located",
+        "expectedAnswer": "Hinter der Abdeckung links.",
+        "markers": ["abdeckung links"]
+    },
+    {
+        "key": "d-negative",
+        "question": "What will the weather be like tomorrow",
+        "expectedAnswer": "Dazu liegen keine Informationen vor.",
+        "negative": true
+    },
+    {
+        "key": "e-unmeasured",
+        "question": "Who signs the maintenance log",
+        "expectedAnswer": "Die Schichtleitung."
+    },
+    {
+        "key": "f-ruled",
+        "question": "Wie lautet das Passwort der Hydraulik",
+        "expectedAnswer": "Dazu gibt es keine Auskunft.",
+        "markers": ["Hydraulik"]
+    }
+]

@@ -1,0 +1,21 @@
+[
+    {
+        "key": "test-eval.retrieval-maintenance",
+        "question": "What is the maintenance interval of the hydraulic pump",
+        "expectedAnswer": "Die Hydraulikpumpe wird alle 500 Betriebsstunden gewartet.",
+        "markers": ["500 Betriebsstunden", "  Hydraulikpumpe  "]
+    },
+    {
+        "key": "test-eval.retrieval-weather",
+        "question": "What will the weather be like tomorrow",
+        "expectedAnswer": "Dazu liegen keine Informationen vor.",
+        "negative": true
+    },
+    {
+        "key": "test-eval.retrieval-plain",
+        "question": "Which torque applies to the wheel nuts",
+        "expectedAnswer": "450 Nm, nach 50 km nachziehen.",
+        "markers": null,
+        "negative": false
+    }
+]

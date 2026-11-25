@@ -1,0 +1,25 @@
+[
+    {
+        "key": "test-eval.maintenance-interval",
+        "question": "What is the maintenance interval of the hydraulic pump",
+        "expectedAnswer": "Die Hydraulikpumpe wird alle 500 Betriebsstunden gewartet, spätestens jedoch einmal jährlich."
+    },
+    {
+        "key": "test-eval.safety-training",
+        "question": "Who is responsible for safety training",
+        "expectedAnswer": "Die Fachkraft für Arbeitssicherheit, einmal jährlich je Mitarbeiter.",
+        "status": "active"
+    },
+    {
+        "key": "test-eval.wheel-nut-torque",
+        "question": "Which torque applies to the wheel nuts",
+        "expectedAnswer": "450 Nm, nach 50 km nachziehen.",
+        "requestData": {"vehicle": "Typ 4", "axles": 2}
+    },
+    {
+        "key": "test-eval.warranty",
+        "question": "Summarise the warranty conditions",
+        "expectedAnswer": "Zwei Jahre Gewährleistung ab Übergabe.",
+        "status": "archived"
+    }
+]

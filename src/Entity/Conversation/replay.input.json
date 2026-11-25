@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Conversation replay",
+  "description": "Replays the user messages of this conversation, in their order, as the turns of a new hidden replay conversation (`origin` `replay`) on the given agent version. Not the history replay of a turn.",
+  "type": "object",
+  "required": ["targetVersion"],
+  "properties": {
+    "targetVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "title": "Target version",
+      "description": "The agent version to replay on: IRI (`/api/agent_versions/<uuid>`) or full UUID. Any published version, also an older one; an unknown version or a version of a disabled agent answers 422."
+    },
+    "variables": {
+      "type": "object",
+      "title": "Variables",
+      "description": "Start parameters of the replay conversation; they replace the source's `variables` as a whole (no merge). Omitted: the source's `variables` (none for a conversation without an agent). Validated against the target version's `startSchema`; an undeclared, missing or invalid variable answers 422 at `variables/<name>`, also for source variables the target does not declare."
+    },
+    "language": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "title": "Language",
+      "description": "Language tag of the replay conversation, one of the target version's `languages` (422 otherwise). Omitted: the source's language when the target supports it, else the target's `defaultLanguage`."
+    }
+  },
+  "additionalProperties": false
+}

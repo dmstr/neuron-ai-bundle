@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Conversation turn",
+  "description": "Appends a user message to the conversation, runs one turn with the conversation's provider connection, model, collections and MCP connections (a connection that is inactive or missing answers 422), and returns the final assistant message.",
+  "type": "object",
+  "required": ["content"],
+  "properties": {
+    "content": {
+      "type": "string",
+      "x-format": "textarea",
+      "minLength": 1,
+      "title": "User message",
+      "description": "Text of the user message."
+    },
+    "responseSchema": {
+      "type": "object",
+      "title": "Response schema",
+      "description": "Optional JSON schema the answer must follow; the assistant message then has kind `schema` with the parsed answer in `structured`."
+    },
+    "maxToolCalls": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "title": "Tool-call bound",
+      "description": "Tool calls the model may make in this turn before it is forced to answer; omitted or null: the configured default, unbounded by default. The forced answer carries `closeReason` `forced_bound` and is preceded by a `limit` record."
+    },
+    "terminalTools": {
+      "type": ["array", "null"],
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "title": "Terminal tools",
+      "description": "Names of offered MCP tools whose call ends the turn: the tool runs, no further model call follows, and its result is the answer (`structured` when it is JSON or a `responseSchema` is given). The final message carries `closeReason` `terminal_tool`. At the tool-call bound the first name is forced where the provider supports it. A name that is not an offered tool, a duplicate or an empty name is rejected with 422. Omitted, null or empty: none."
+    }
+  },
+  "additionalProperties": false
+}

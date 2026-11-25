@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "file generated with AI assistance: Claude Code - 2026-10-03 23:30:03 UTC",
+  "title": "Evaluation run start",
+  "description": "Starts an evaluation run of every active question on an agent version: each question runs as the first turn of a new evaluation conversation, or, with `retrievalOnly`, only its retrieval is measured. The version is given in one of two ways: `agentVersion` (the current published version or a preview of an enabled agent), or `agent` together with `candidate: true` (the agent's current candidate, validated like a publish and frozen as a preview, reused while the candidate is unchanged). Both ways in one body, or neither, are rejected with 422.",
+  "type": "object",
+  "properties": {
+    "agentVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "title": "Agent version",
+      "description": "The agent version to evaluate: IRI (`/api/agent_versions/<uuid>`) or full UUID. It must be the current published version or a preview of an enabled agent; otherwise the request is rejected with 422. Not combined with `agent` or `candidate`."
+    },
+    "agent": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "title": "Agent",
+      "description": "The agent whose candidate is evaluated: IRI (`/api/agents/<uuid>`), full UUID or slug; only together with `candidate: true` and without `agentVersion`. An unknown or disabled agent and an invalid candidate (at `candidate/<field>`, as on publish) are rejected with 422. The run's `agentVersion` is then the candidate's preview."
+    },
+    "candidate": {
+      "type": "boolean",
+      "const": true,
+      "title": "Candidate",
+      "description": "`true`: evaluate the current candidate of `agent` as a preview instead of a published version. Only together with `agent`; `false` is rejected with 422 (use `agentVersion` for a published version)."
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["retrieval", "agent"],
+      "title": "Mode",
+      "description": "Which metric set applies. `retrieval`: after each question's turn the run repeats the turn's retrieval search and stores recall hit and first relevant rank per result, recall and MRR per run (one extra query embedding per embedding model and question); the version must have knowledge collections, otherwise the request is rejected with 422. `agent`: no retrieval measurement. Omitted: `retrieval` when the version has knowledge collections, otherwise `agent`."
+    },
+    "retrievalOnly": {
+      "type": "boolean",
+      "title": "Retrieval only",
+      "description": "`true`: no chat call and no conversation; per question the run only performs the retrieval search and stores the retrieval measurement as its result (tokens and interactions null, nothing for the judge to evaluate). Implies mode `retrieval`: together with mode `agent`, or for a version without knowledge collections, the request is rejected with 422. Omitted or `false`: every question runs as a conversation turn."
+    }
+  },
+  "oneOf": [
+    {
+      "title": "Agent version",
+      "required": ["agentVersion"],
+      "not": {
+        "anyOf": [
+          {"required": ["agent"]},
+          {"required": ["candidate"]}
+        ]
+      }
+    },
+    {
+      "title": "Candidate of an agent",
+      "required": ["agent", "candidate"],
+      "not": {"required": ["agentVersion"]}
+    }
+  ],
+  "additionalProperties": false
+}

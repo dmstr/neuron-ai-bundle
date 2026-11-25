@@ -1,0 +1,23 @@
+[
+    {
+        "key": "test-acceptance.a-maintenance",
+        "question": "What is the maintenance interval?",
+        "expectedAnswer": "Every 500 operating hours, at least once a year. [judge:pass]"
+    },
+    {
+        "key": "test-acceptance.b-torque",
+        "question": "Which torque applies to the wheel nuts?",
+        "expectedAnswer": "450 Nm, re-tighten after 50 km. [judge:mostly_pass]"
+    },
+    {
+        "key": "test-acceptance.c-warranty",
+        "question": "Summarise the warranty conditions.",
+        "expectedAnswer": "Two years from handover."
+    },
+    {
+        "key": "test-acceptance.d-safety-training",
+        "question": "Who is responsible for safety training?",
+        "expectedAnswer": "The safety officer, once a year per employee.",
+        "status": "archived"
+    }
+]

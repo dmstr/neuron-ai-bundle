@@ -1,0 +1,7 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Anonymous conversation",
+  "description": "Creates an anonymous conversation with the configuration the operator released for anonymous visitors. The body must be an empty object: provider connection, model, collections, MCP connections and title cannot be chosen.",
+  "type": "object",
+  "additionalProperties": false
+}

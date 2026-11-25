@@ -1,0 +1,17 @@
+{
+    "What is the maintenance interval": "Die Hydraulikpumpe wird alle 500 Betriebsstunden gewartet, spätestens jedoch einmal jährlich.",
+    "What is the maintenance interval of the hydraulic pump": {
+        "toolCalls": [
+            {"name": "search_documents", "inputs": {"query": "Wartungsintervall Hydraulikpumpe", "limit": 3}, "callId": "call_maintenance"}
+        ],
+        "answer": "Laut Wartungshandbuch (Kapitel 4.2) alle 500 Betriebsstunden; das Hydrauliköl wird alle 2000 Stunden gewechselt."
+    },
+    "Who is responsible for safety training": {
+        "answer": "Die Sicherheitsunterweisung verantwortet die Fachkraft für Arbeitssicherheit, einmal jährlich je Mitarbeiter.",
+        "reasoning": "The handbook names the safety officer in chapter 1."
+    },
+    "Which torque applies to the wheel nuts": "Die Radmuttern werden mit 450 Nm angezogen und nach 50 km nachgezogen.",
+    "Summarise the warranty conditions": {
+        "failure": "Upstream provider overloaded (529)."
+    }
+}

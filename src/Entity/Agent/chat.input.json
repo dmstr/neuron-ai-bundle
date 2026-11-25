@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "file generated with AI assistance: Claude Code - 2026-10-13 23:25:16 UTC",
+  "title": "Agent chat",
+  "description": "One stateless turn on the current published version of the agent, or, with `target` `candidate`, on a preview of the agent's current candidate. Instructions, model (a catalogue entry with its provider connection), collections, retrieval depth, MCP tools, terminal tools, response schema and sampling come from the version; a body key that sets one of them (`connection`, `provider`, `model`, ...) is rejected with 422.",
+  "type": "object",
+  "required": ["messages"],
+  "properties": {
+    "target": {
+      "type": "string",
+      "enum": ["published", "candidate"],
+      "default": "published",
+      "title": "Target",
+      "description": "Which configuration answers. `published` (default): the agent's current published version; an agent without one is rejected with 422. `candidate` (requires the permission `neuronai:agent:chat_candidate`, otherwise 403): a preview of the agent's current candidate, validated like a publish (an invalid candidate is rejected with 422 at `candidate/<field>`), frozen as a preview version and reused while the candidate is unchanged; the response's `agentVersion` then points at that preview and `agentVersionKind` is `preview`. A disabled agent is rejected with 422 for both."
+    },
+    "messages": {
+      "type": "array",
+      "minItems": 1,
+      "title": "Messages",
+      "description": "The conversation so far as a list of `{role, content}` objects with role `user` or `assistant`. The last entry is the user message of this turn and must not be empty, the earlier ones are the history. Nothing is stored; send the whole list with every request.",
+      "items": {
+        "type": "object",
+        "required": ["role", "content"],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": ["user", "assistant"]
+          },
+          "content": {
+            "type": "string",
+            "x-format": "textarea"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "variables": {
+      "type": "object",
+      "default": {},
+      "title": "Variables",
+      "description": "Values of the `{{name}}` placeholders in the version's instructions, validated against the version's `startSchema`; scalar values only. `date`, `language` and `agentName` are system values and cannot be supplied. A variable the version does not declare, an invalid value or a placeholder left unfilled answers 422 at `variables/<name>`."
+    },
+    "language": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "title": "Language",
+      "description": "Language tag of the instructions, one of the version's `languages`; omitted: the version's `defaultLanguage`. Without an instructions text for the tag the text of the default language applies. Another tag answers 422."
+    },
+    "maxToolCalls": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "title": "Max tool calls",
+      "description": "Tool calls the model may make before it is forced to answer. May only lower the bound of the version (or of the application and bundle defaults); a higher value is clamped to it. Null or omitted: the resolved bound."
+    }
+  },
+  "additionalProperties": false
+}

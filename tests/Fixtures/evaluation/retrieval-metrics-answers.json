@@ -1,0 +1,9 @@
+{
+    "How is the hydraulic system serviced": "Die Hydraulikpumpe wird alle 500 Betriebsstunden gewartet.",
+    "Which coolant does the gearbox need": {
+        "failure": "Upstream provider overloaded (529)."
+    },
+    "Where is the hydraulic filter located": "Der Filter sitzt hinter der Abdeckung links.",
+    "What will the weather be like tomorrow": "Dazu liegen keine Informationen vor.",
+    "Who signs the maintenance log": "Das Wartungsbuch zeichnet die Schichtleitung ab."
+}
