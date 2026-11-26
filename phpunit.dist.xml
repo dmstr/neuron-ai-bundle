@@ -2,7 +2,7 @@
 <!-- file generated with AI assistance: Claude Code - 2026-11-25 21:50:20 UTC -->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/Kernel/bootstrap.php"
          cacheDirectory=".phpunit.cache"
          colors="true"
          failOnRisky="true"
@@ -40,7 +40,11 @@
              precedence -->
         <env name="DATABASE_URL" value="postgresql://app:app@127.0.0.1:5432/neuron_ai_test?serverVersion=16&amp;charset=utf8"/>
     </php>
-    <source>
+    <!-- Notices and warnings count only when PHP raises them in src/, as in
+         a host application's suite: test code that reads a key the response
+         left out (null values are not serialized) is not an issue of the
+         bundle -->
+    <source restrictNotices="true" restrictWarnings="true">
         <include>
             <directory>src</directory>
         </include>
