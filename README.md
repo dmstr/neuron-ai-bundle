@@ -9,7 +9,7 @@ Symfony bundle integrating the [Neuron AI](https://github.com/neuron-core/neuron
 - knowledge collections as an API Platform resource, with lock, delete with content and reindex;
 - MCP servers as the `mcp` connection type, a catalogue of their tools, and the knowledge base served as RAG tools over MCP (with dmstr/mcp-endpoint-bundle);
 - persisted conversations with streaming, resume and cancel, including anonymous conversations with a capability token, limits and a scheduled purge;
-- versioned agents with publish, rollback and preview versions, pre-answer rules, output templates and answer gates, an agent chat and an OpenAI-compatible chat API;
+- versioned agents with publish, rollback and preview versions, pre-answer rules, output templates and answer gates, an agent chat, an OpenAI-compatible chat API and an agent runner for turns without a request, with an optional per-run tool argument guard;
 - an evaluation of agent versions (batch runs, retrieval metrics, an AI judge, human ratings, run comparison, conversation replay) and feedback;
 - a stateless chat service on the same turn runner, artifact tools for agents, and kernel-free document extraction and heading-aware chunking;
 - test seams (`Dmstr\NeuronAiBundle\Testing`), so no test of a host application contacts a model server or an MCP server.
@@ -556,6 +556,8 @@ The chat is a thin wrapper around two reusable services (private, service id = c
 $connections = $resolver->resolveMany(['docs']);
 $agent->addTool($toolFactory->forConnections($connections));
 ```
+
+The tools built here run every call the model makes with the connection's credentials. A caller of an agent turn that must keep the calls of one run to certain tenants or projects wraps them in a [tool argument guard](#tool-argument-guard), which refuses a call with another value before the connector contacts the server.
 
 In tests, `Testing\FakeMcpTransportFactory` records whether a tool call reached the server, and `Testing\FakeProviderFactory::queueToolCall()` makes the fake model request a tool call (see [Test seams](#test-seams)).
 
@@ -1433,7 +1435,7 @@ Limitations: a start of an evaluation run on `candidate: true` creates (or reuse
 
 ### Agent chat
 
-`POST /api/agents/{id}/chat` (`agent_chat`, `neuronai:agent:chat`, routed to the `stream` pool like `/chat`) runs one stateless turn on the agent's current version; nothing is stored. The body is validated against `src/Entity/Agent/chat.input.json` (also the OpenAPI request body): `messages` (required, `{role, content}` with role `user` or `assistant`, the last one a non-empty user message), `variables` (values of the `{{name}}` placeholders, checked against the version's `startSchema`), `language` (one of the version's `languages`, default `defaultLanguage`) and `maxToolCalls` (may only lower the resolved bound). Everything else comes from the version through `Agent\VersionTurnMapper`: instructions of the effective language with `{{date}}`, `{{language}}`, `{{agentName}}` and the variables filled in, provider, model, collections, retrieval depth and hybrid search, the tool subset of `mcpTools` with its terminal flags, response schema, sampling (`temperature`, `maxTokens`; wired, not verified against live providers) and the tool-call bound. The turn runs on `Chat\ChatService::chatConfigured()`.
+`POST /api/agents/{id}/chat` (`agent_chat`, `neuronai:agent:chat`, routed to the `stream` pool like `/chat`) runs one stateless turn on the agent's current version; nothing is stored. The body is validated against `src/Entity/Agent/chat.input.json` (also the OpenAPI request body): `messages` (required, `{role, content}` with role `user` or `assistant`, the last one a non-empty user message), `variables` (values of the `{{name}}` placeholders, checked against the version's `startSchema`), `language` (one of the version's `languages`, default `defaultLanguage`) and `maxToolCalls` (may only lower the resolved bound). Everything else comes from the version through `Agent\VersionTurnMapper`: instructions of the effective language with `{{date}}`, `{{language}}`, `{{agentName}}` and the variables filled in, provider, model, collections, retrieval depth and hybrid search, the tool subset of `mcpTools` with its terminal flags, response schema, sampling (`temperature`, `maxTokens`; wired, not verified against live providers) and the tool-call bound. `Chat\AgentChat` keeps only what needs the request (the `candidate` permission and the preview created by the token's user) and runs the turn on `Chat\AgentRunner` (see [Running an agent without a request](#running-an-agent-without-a-request)), which maps the version, evaluates the pre-answer rules and calls `Chat\ChatService::chatConfigured()`.
 
 **Chat with the candidate.** The optional `target` selects the configuration: `published` (the default) is the current version, `candidate` a [preview](#preview-versions) of the agent's current candidate, so a change can be tried before it is published. `target: candidate` needs `neuronai:agent:chat_candidate` on top of the operation's `neuronai:agent:chat` (403 `Chatting with the candidate of an agent (target "candidate") requires the permission neuronai:agent:chat_candidate.`), because it tests an unpublished configuration, stores a version row and runs the live model check of a publish, which is agent-admin work like the agent writes. The candidate is validated like a publish (422 at `candidate/<field>`, nothing stored), an unchanged candidate reuses its preview, and a concurrent creation answers 409. The agent needs no published version for it; a disabled agent answers 422 for both targets. Everything else works as on the published version: the same body and refused keys, the preview's rules, gates and templates apply, and nothing is stored apart from the preview itself. The response names the preview in `agentVersion` and has `agentVersionKind` `preview` (`published` otherwise).
 
@@ -1441,9 +1443,77 @@ Errors, all before a provider is contacted: a body key that the version fixes (`
 
 Before retrieval and the provider call, the version's [pre-answer rules](#pre-answer-rules-and-templates) are evaluated on the `content` of the last `user` message in the effective language. When a rule answers or refuses, the call still answers 200, without retrieval or provider call: `answer` is the rendered template text, `provider`, `model` and `mcpConnections` are the version's, `sources` is `[]`, `usage`, `structured`, `schemaErrors` and `terminalTool` are null, `forced` and `limitReached` false, `frame` null, and `rule` is `{index, name, match, outcome, template}` of the deciding rule. When no rule decided, `rule` is null (or absent; clients treat both alike). Nothing is stored either way.
 
-When no rule decided, the version's [answer gates](#answer-gates) run; `agent_chat` is the only caller of `ChatService::chatConfigured()` that enables them (the judge does not). When the prompt-injection guard refuses, the call answers 200 without retrieval or answer call: `answer` is the version's `injectionRefusal` text (effective language, else the default language), `gate` is `{gate, kind, template}` (`{"gate": "injection", "kind": "injection_refusal", "template": "injectionRefusal"}`), `sources` is `[]`, `frame`, `rule`, `structured`, `schemaErrors` and `terminalTool` are null, `forced` and `limitReached` false, and `provider`, `model` and `mcpConnections` are the version's. Otherwise `gate` is null. The gate's reason is never returned. Whenever a gate ran (refused, passed or failed open), `usage` includes its tokens in `input_tokens` and `output_tokens` and lists them under `usage.gates.<gate>` as `{input_tokens, output_tokens}`. With `followUps` on, a complete text answer carries the suggestions as `followUps` (see [Follow-up suggestions](#follow-up-suggestions)), `[]` when the follow-up call failed or produced nothing; `followUps` is null when the version has it off and when the gate did not run (a rule, a gate refusal, a schema, terminal-tool, fallback or empty answer).
+When no rule decided, the version's [answer gates](#answer-gates) run; `agent_chat` and the `Chat\AgentRunner` with its default options are the only callers of `ChatService::chatConfigured()` that enable them (the judge does not). When the prompt-injection guard refuses, the call answers 200 without retrieval or answer call: `answer` is the version's `injectionRefusal` text (effective language, else the default language), `gate` is `{gate, kind, template}` (`{"gate": "injection", "kind": "injection_refusal", "template": "injectionRefusal"}`), `sources` is `[]`, `frame`, `rule`, `structured`, `schemaErrors` and `terminalTool` are null, `forced` and `limitReached` false, and `provider`, `model` and `mcpConnections` are the version's. Otherwise `gate` is null. The gate's reason is never returned. Whenever a gate ran (refused, passed or failed open), `usage` includes its tokens in `input_tokens` and `output_tokens` and lists them under `usage.gates.<gate>` as `{input_tokens, output_tokens}`. With `followUps` on, a complete text answer carries the suggestions as `followUps` (see [Follow-up suggestions](#follow-up-suggestions)), `[]` when the follow-up call failed or produced nothing; `followUps` is null when the version has it off and when the gate did not run (a rule, a gate refusal, a schema, terminal-tool, fallback or empty answer).
 
 **Source freshness.** Each entry of `sources` in the agent chat result carries `checkedAt` (an import last found the source) and `changedAt` (its content last changed), both ISO 8601, so a client can show "checked 3 days ago, changed on …". The dates come from the application's `Retrieval\SourceFreshnessInterface` alias (`freshness(list<documentId>)`), asked when the answer is returned rather than stored with the chunk, because an unchanged source is not re-embedded and a stored date would go stale. Without an alias, for a chunk without a document or for an unknown document, both are null. A typical implementation reads the check and change times of the host's document rows.
+
+### Running an agent without a request
+
+`Chat\AgentRunner` (private, service id = class name; inject it by type) runs one stateless turn on an agent version without HTTP request, security token or user, for a queue worker, a console command or another service. It is the turn of `agent_chat` and returns the same `Chat\AgentChatResult`: the disabled and published checks, the mapping by `Agent\VersionTurnMapper`, the pre-answer rules on the last user message, the turn on `ChatService::chatConfigured()` with the version's answer gates, and the source freshness. `Chat\AgentChat` (and with it the [OpenAI-compatible chat API](#openai-compatible-chat-api)) and the [judge](#the-judge) run on it, so the HTTP action and headless callers cannot drift apart. Nothing is stored.
+
+The entries, each one step further down:
+
+- `run(Agent $agent, array $messages, AgentRunOptions $options = new AgentRunOptions()): AgentChatResult` runs the current published version; a disabled agent answers 422 `Agent "<slug>" is disabled.`, an agent without a current version 422 `Agent "<slug>" has no published version.`, as in the agent chat.
+- `runVersion(AgentVersion $version, array $messages, AgentRunOptions $options = …)` runs any version, published or preview, without checking the agent's `enabled` flag; `assertEnabled(Agent)` and `publishedVersion(Agent)` are public for callers that pick the version themselves.
+- `runConfigured(TurnConfiguration $configuration, array $messages, AgentRunOptions $options = …)` runs an already mapped configuration and ignores `variables`, `language` and `maxToolCalls` of the options. It needs no database beyond what the configuration references, which is how kernel-free tests build a run (see [Test seams](#test-seams)).
+- `execute(AgentVersion …)` and `executeConfigured(TurnConfiguration …)` run the same turn but return the raw `Chat\AgentRunResult`: `configuration` (the configuration the turn used; under a [tool argument guard](#tool-argument-guard) the guarded copy) and either `rule` (the `RuleOutcome` of a deciding pre-answer rule, no provider called, `chat` null) or `chat` (the array of `chatConfigured()` with the snake-case keys of `ChatService::chat()`, `rule` null). They touch neither the IRI converter nor the freshness port, for callers that evaluate the answer themselves; the judge uses `execute()`.
+
+`$messages` is a list of `['role' => 'user'|'assistant', 'content' => string]` whose last entry is a user message, as in the agent chat body. `Chat\AgentRunOptions` is a readonly value object; its defaults are those of `agent_chat` without `variables`, `language` and `maxToolCalls`:
+
+| Option | Default | Meaning |
+|---|---|---|
+| `variables` | `[]` | values of the `{{name}}` placeholders, validated against the version's `startSchema` |
+| `language` | null | the effective language; null is the version's `defaultLanguage` |
+| `maxToolCalls` | null | request bound; may only lower the resolved tool-call bound |
+| `rules` | true | evaluate the version's pre-answer rules on the last user message |
+| `gates` | true | run the version's answer gates |
+| `toolGuard` | null | a `Chat\ToolArgumentGuard` that checks one argument of every tool call of the run (see [Tool argument guard](#tool-argument-guard)); null runs the tools unchanged |
+
+```php
+use Dmstr\NeuronAiBundle\Chat\AgentRunOptions;
+
+// $runner: the injected Chat\AgentRunner, e.g. in a message handler
+$result = $runner->run($agent, [['role' => 'user', 'content' => 'Summarise the open issues.']], new AgentRunOptions(
+    variables: ['team' => 'backend'],
+    language: 'en',
+    maxToolCalls: 5,
+));
+$answer = $result->answer;
+```
+
+Errors are the exceptions of the agent chat, also for headless callers, which map them themselves: `UnprocessableEntityHttpException` for a disabled or unpublished agent and for invalid variables or an unsupported language (at `runConfigured()` for an invalid message list or a collection deleted since the mapping), `Agent\StaleReferenceException` for a reference of the version that no longer resolves, and a provider failure unchanged. They stay HTTP exceptions because `agent_chat` passes them through as its responses; the messages are those listed under [Agent chat](#agent-chat).
+
+What stays in `Chat\AgentChat` is what needs the request: the permission of `target: candidate` and the creation of the preview by the token's user. A headless caller that wants to try a candidate passes a preview version it obtained itself to `runVersion()`. MCP tools of a `forward_jwt` connection read the JWT from the security token while the tools are built; a run without one (a worker, a command) gets only the tools whose catalogue annotation `readOnlyHint` is `true`, run with the scan service account (see [Configuration schema](#configuration-schema)).
+
+### Tool argument guard
+
+`Chat\ToolArgumentGuard` is an optional per-run check on one argument of every tool call, for a tool server whose credentials see more tenants than the caller: a connection with a service account can reach every project the account can, while one run should only touch the projects it was started for. The caller names, per tool, the one argument that identifies the tenant or project of a call, and the values the run may use. With the guard as `AgentRunOptions::$toolGuard`, the runner replaces every tool of the run by a `Chat\GuardedTool` (on a copy of the configuration, `TurnConfiguration::withTools()`), which asks the guard before the wrapped tool runs. `agent_chat`, the OpenAI-compatible API and the judge run without a guard; it is meant for callers of the runner that know the allowed values.
+
+```php
+use Dmstr\NeuronAiBundle\Chat\AgentRunOptions;
+use Dmstr\NeuronAiBundle\Chat\ToolArgumentGuard;
+
+$guard = new ToolArgumentGuard(
+    ['list_issues' => 'project', 'get_issue' => 'project_id'], // tool name => argument name
+    ['acme/app', 42],                                           // allowed values
+);
+$result = $runner->run($agent, $messages, new AgentRunOptions(toolGuard: $guard));
+```
+
+The decision is fail-closed:
+
+- A tool without an entry in the map is refused, also a tool that has no such argument at all or two of them; there is no exception list, so every tool the run should be able to call needs an entry.
+- An argument the tool's schema does not declare is refused, because the framework drops an undeclared value before the call and the check would not see what the tool sends.
+- A missing argument (absent or null) is refused.
+- Only an `int` or a `string` is a value; booleans, floats, arrays and objects are refused.
+- The value, as a string, must equal an allowed value exactly: no trimming, no case folding, no URL decoding. Which spellings are valid is entirely the allowed set (an allowed `42` matches int 42 and string `"42"`; `acme%2Fapp` or `Acme/App` only when listed). An empty set refuses every call.
+- The constructor throws `\InvalidArgumentException` for an empty tool or argument name and for an allowed value that is neither int nor string.
+
+A refused call never reaches the wrapped tool: an MCP tool neither connects (no handshake) nor sends `tools/call`. Its result is a tool error (`ToolOutput::error()`) with the reason, for example `Tool "list_issues" is refused: the value of the argument "project" is not allowed in this run.`, never a thrown exception; the reason does not echo the allowed values. The run goes on, so the model can answer without the data, and refused calls count against the tool-call bound like any other call; a refused call of a terminal tool does not end the turn. Every tool of the run is wrapped, MCP or not. A tool name the model invents that is not offered at all never becomes a tool of the run: the provider layer of neuron-ai rejects the response, and the turn fails with a `ProviderException` before any tool runs.
+
+**Cast values.** The check runs on the inputs as the tool has bound them, that is after the cast by its declared property types: a `string` property turns int 42 into `"42"`, an `integer` property turns `"42"` into 42. With `42` allowed, a float `42.0` on a `string` property passes (it becomes `"42"`), and so does `"42"` on an `integer` property, because that is what the tool would send; a float `42.5` stays refused. The guard compares what the tool sends, not what the model wrote.
+
+**Not an access layer for connections or collections.** The guard is unrelated to [restricted connections](#configuration-schema) (`Mcp\McpConnectionRestriction`, permission `neuronai:mcp_connection:use_restricted`) and to retrieval scopes (`Agent\RetrievalScope`, the [scope](#scope) of the RAG tools with `Mcp\Server\CollectionScopeResolver`): it neither decides which connections or collections a version may use nor changes them, it only checks one argument of the calls of one run. The other arguments of a call and the tool's result remain the server's business.
 
 ### OpenAI-compatible chat API
 
@@ -1702,6 +1772,7 @@ The gate calls of a turn share the turn deadline `turn.deadline_seconds`, counte
 | `POST /conversations/{id}/stream` of an agent conversation | run inside the streamed turn; a refusal sends `sources`, `gate`, `done` |
 | anonymous conversation with a released agent | as the two routes above; the anonymous limits count the gate tokens |
 | `POST /agents/{id}/chat` | run; a refusal answers 200 with `gate`; nothing stored |
+| `Chat\AgentRunner` without a request | run unless the options set `gates: false`; a refusal returns the result with `gate`, as the agent chat |
 | evaluation batch run, single execution, conversation replay | run (they use the synchronous or streamed turn, see [Evaluation](#evaluation)) |
 | conversations without an agent, `/chat`, the judge, retrieval-only runs and the retrieval measurement of a run | no gates |
 
@@ -1856,9 +1927,9 @@ Replay conversations (`origin` `replay`, see [Conversation replay](#conversation
 
 `POST /eval_results/{id}/evaluate` (operation and job type `eval_result_evaluate`, `neuronai:eval:write`, no body) answers 422 for any result of a retrieval-only run, whatever its status (`Retrieval-only result, nothing to judge: the run measured retrieval without an answer.`, checked first, so it is not reported as a missing conversation), when the result is not `completed`, when its conversation was deleted, and when the judge cannot run (the setting is empty or names an unknown, disabled or unpublished agent; the detail names the setting). Otherwise it stores a `pending` evaluation as the result's `evaluation`, queues the job and answers 202 with the evaluation and its `jobId`.
 
-The judge (`Evaluation\Judge`) is the current published version of the agent named by the setting `evaluation.judge_agent` (slug, UUID or IRI), resolved again when the job runs. Its version is mapped like every agent turn (`VersionTurnMapper`, default language, no variables) and called once through `ChatService::chatConfigured()` with one user message: the question, the expected answer, a plain-text transcript of the result's conversation (user messages, assistant answers, tool calls with input and result, errors; reasoning and `limit` records left out) and the verdict schema with the instruction to answer only with JSON. The answer is checked in two steps: `schema_errors` of the version's own `responseSchema`, if it has one, and then the bundle's verdict schema `src/Evaluation/verdict.schema.json` (JSON Schema 2020-12: `verdict` one of the four values, `reasoning`, `suggestions[]` with `type` `data`/`prompt`, `category` of at most 100 characters, `description`, `action`, `priority` `low`/`medium`/`high`, no further properties), whatever the version declares. Code fences around the JSON are stripped. The runtime check is the guarantee; the settings bundle cannot check at save time that the named agent answers in this shape.
+The judge (`Evaluation\Judge`) is the current published version of the agent named by the setting `evaluation.judge_agent` (slug, UUID or IRI), resolved again when the job runs. Its version runs once on the [agent runner](#running-an-agent-without-a-request) (`Chat\AgentRunner::execute()` with `rules` and `gates` off): mapped like every agent turn (`VersionTurnMapper`, default language, no variables), without the version's pre-answer rules, and called through `ChatService::chatConfigured()` with one user message: the question, the expected answer, a plain-text transcript of the result's conversation (user messages, assistant answers, tool calls with input and result, errors; reasoning and `limit` records left out) and the verdict schema with the instruction to answer only with JSON. The answer is checked in two steps: `schema_errors` of the version's own `responseSchema`, if it has one, and then the bundle's verdict schema `src/Evaluation/verdict.schema.json` (JSON Schema 2020-12: `verdict` one of the four values, `reasoning`, `suggestions[]` with `type` `data`/`prompt`, `category` of at most 100 characters, `description`, `action`, `priority` `low`/`medium`/`high`, no further properties), whatever the version declares. Code fences around the JSON are stripped. The runtime check is the guarantee; the settings bundle cannot check at save time that the named agent answers in this shape.
 
-The judge call runs without [answer gates](#answer-gates) (`chatConfigured()` with `gates: false`), even when the judge version has them on: the transcript under judgement contains the evaluated user input and would trip the injection guard. In the transcript a gate refusal record (`injection_refusal`, `unanswerable_refusal`) is its refusal text followed by `[refused by the <gate> gate: <reason>]` (`[refused by the <gate> gate]` without a reason), with the reason read from `providerPayload.gates`, so the judge can tell a refusal from a failed answer. The reason reaches only the judge's provider, never `message:read`.
+The judge call runs without [answer gates](#answer-gates) (`AgentRunOptions` with `gates: false`, passed on to `chatConfigured()`), even when the judge version has them on: the transcript under judgement contains the evaluated user input and would trip the injection guard. In the transcript a gate refusal record (`injection_refusal`, `unanswerable_refusal`) is its refusal text followed by `[refused by the <gate> gate: <reason>]` (`[refused by the <gate> gate]` without a reason), with the reason read from `providerPayload.gates`, so the judge can tell a refusal from a failed answer. The reason reaches only the judge's provider, never `message:read`.
 
 Outcomes, written with one flush under the audit actor `system:neuron:eval`:
 
@@ -2338,6 +2409,8 @@ $factory->getChatProvider()->assertCallCount(2);
 ```
 
 Kernel-free tests construct the fake directly, e.g. `new FakeEmbeddingsProvider('nomic-embed-text', 768, $recorder)`, or wrap it with `PrefixedEmbeddingsProvider::forModel($fake, $registry->get('nomic-embed-text'))` to include the prefixes.
+
+A kernel-free test of an agent turn, with or without a [tool argument guard](#tool-argument-guard), runs `Chat\AgentRunner::runConfigured()` (or `executeConfigured()`) on a `TurnConfiguration` built by hand, so neither a database nor a published version is needed. The `ChatService` is the real one on `new TurnRunner($factory, new StructuredAnswerValidator())` with a `FakeProviderFactory` as `$factory` and `new McpToolFactory($entityManager, $fakeTransport)` on a `FakeMcpTransportFactory` (see [Fake transport for tests](#fake-transport-for-tests)); the entity manager, IRI converter and UUID resolver can be PHPUnit stubs, and `ProviderSelection` takes a `FakeModelLister`. The configuration's MCP tools come from `McpServerConnector::forTransport($fakeTransport->create(['url' => …]))->createCatalogueTool($name, $description, $inputSchema)`, one connector per connection. `runConfigured()` never calls the mapper, so the runner's `VersionTurnMapper` argument may be an instance without constructor. The model is scripted with `queueToolCall()` and `queueAnswer()`; `$fakeTransport->getMethods()` shows whether a call reached the server (`[]` for a refused one) and `getChatProvider()->getRecorded()` the tool results the model saw. The bundle's own `tests/Unit/Chat/AgentRunnerTest.php` and `AgentRunnerToolGuardTest.php` are built this way.
 
 ### Fixture mode
 

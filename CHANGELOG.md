@@ -4,6 +4,19 @@
 
 All notable changes to this bundle. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/) and come from the Git tags.
 
+## [Unreleased]
+
+### Added
+
+- The agent runner `Chat\AgentRunner` (service id = class name): one stateless turn on an agent version without HTTP request, security token or user, with the rules, gates and `Chat\AgentChatResult` of `POST /agents/{id}/chat`, for queue workers and commands. Entries `run()`, `runVersion()` and `runConfigured()`, and `execute()` and `executeConfigured()` returning the raw result; headless callers get the exceptions of the agent chat.
+- The run options `Chat\AgentRunOptions` (`variables`, `language`, `maxToolCalls`, `rules`, `gates`, `toolGuard`) and the raw result `Chat\AgentRunResult` (configuration, and either the deciding rule outcome or the array of `ChatService::chatConfigured()`).
+- The per-run tool argument guard `Chat\ToolArgumentGuard` with the wrapper `Chat\GuardedTool`: per tool the one argument that names the tenant or project of a call and the allowed values; a call outside them is refused before the tool runs (an MCP tool neither connects nor sends) and returned to the model as a tool error. Unrelated to restricted MCP connections and retrieval scopes.
+- `Agent\TurnConfiguration::withTools()`: a copy of the configuration with another tool list.
+
+### Changed
+
+- `Chat\AgentChat` and `Evaluation\Judge` run on `Chat\AgentRunner`; their constructors take it as an optional last argument and build one from their other arguments without it. No behaviour change.
+
 ## [0.1.0] - 2026-11-25
 
 Initial public release.
