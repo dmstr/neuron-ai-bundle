@@ -17,7 +17,9 @@ use Dmstr\NeuronAiBundle\Agent\VersionTurnMapper;
  *
  * `variables`, `language` and `maxToolCalls` are passed to
  * {@see VersionTurnMapper::map()}; an entry that starts from an already
- * mapped configuration ignores them.
+ * mapped configuration ignores them. `toolGuard` applies to every entry:
+ * with a guard, every tool of the run is checked by it
+ * ({@see ToolArgumentGuard}); null, the default, runs the tools unchanged.
  */
 final readonly class AgentRunOptions
 {
@@ -27,6 +29,7 @@ final readonly class AgentRunOptions
      * @param int|null             $maxToolCalls request bound; may only lower the resolved limit
      * @param bool                 $rules        whether the version's pre-answer rules run on the last user message
      * @param bool                 $gates        whether the version's answer gates run ({@see ChatService::chatConfigured()})
+     * @param ToolArgumentGuard|null $toolGuard  checks one argument of every tool call of the run; null = no guard
      */
     public function __construct(
         public array $variables = [],
@@ -34,6 +37,9 @@ final readonly class AgentRunOptions
         public ?int $maxToolCalls = null,
         public bool $rules = true,
         public bool $gates = true,
+        public ?ToolArgumentGuard $toolGuard = null,
     ) {
     }
 }
+
+// - revised 2026-11-27 (tool argument guard)

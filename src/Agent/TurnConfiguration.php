@@ -115,6 +115,21 @@ final readonly class TurnConfiguration
     {
         return $this->connection;
     }
+
+    /**
+     * A copy with $tools instead of the mapped tool list; everything else,
+     * `mcpConnections` and `terminalTools` included, stays as mapped.
+     *
+     * @param list<ToolInterface> $tools
+     */
+    public function withTools(array $tools): self
+    {
+        $values = get_object_vars($this);
+        $values['tools'] = $tools;
+
+        return new self(...$values);
+    }
 }
 // - revised 2026-10-14
 // - revised 2026-10-16
+// - revised 2026-11-27 (withTools)

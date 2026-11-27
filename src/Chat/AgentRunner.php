@@ -40,6 +40,12 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
  * carry `checkedAt` and `changedAt` of the application's
  * {@see SourceFreshnessInterface}.
  *
+ * With {@see AgentRunOptions::$toolGuard} set, every tool of the
+ * configuration runs wrapped in a {@see GuardedTool}: a call whose
+ * guarded argument is not allowed is refused before the tool runs and
+ * returned to the model as a tool error ({@see ToolArgumentGuard}). The
+ * configuration of an {@see AgentRunResult} is then the guarded copy.
+ *
  * {@see execute()} and {@see executeConfigured()} run the same turn but
  * return the raw {@see AgentRunResult} (configuration, rule outcome or the
  * array of `chatConfigured()`), for callers that evaluate the answer
@@ -127,7 +133,11 @@ final readonly class AgentRunner
     {
         // Every entry passes here right after the mapping: the place for
         // per-run changes of the mapped configuration (such as its tool
-        // list), before the rules and the turn.
+        // list), before the rules and the turn. Under a tool argument
+        // guard every tool is replaced, MCP or not (fail-closed).
+        if (null !== $options->toolGuard) {
+            $configuration = $configuration->withTools($options->toolGuard->guard($configuration->tools));
+        }
 
         if ($options->rules) {
             $question = self::lastUserContent($messages);
@@ -275,3 +285,5 @@ final readonly class AgentRunner
         return null;
     }
 }
+
+// - revised 2026-11-27 (tool argument guard)
