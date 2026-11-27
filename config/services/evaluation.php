@@ -29,6 +29,7 @@ use Dmstr\NeuronAiBundle\Agent\AgentVersionPinner;
 use Dmstr\NeuronAiBundle\Agent\LimitResolver;
 use Dmstr\NeuronAiBundle\Agent\VersionTurnMapper;
 use Dmstr\NeuronAiBundle\Anonymous\SystemActor;
+use Dmstr\NeuronAiBundle\Chat\AgentRunner;
 use Dmstr\NeuronAiBundle\Chat\ChatService;
 use Dmstr\NeuronAiBundle\Controller\EvalQuestionExecuteController;
 use Dmstr\NeuronAiBundle\Conversation\ContextRetriever;
@@ -127,8 +128,10 @@ return static function (ContainerConfigurator $container): void {
         ->tag('dmstr.job_queue.processor');
 
     // The AI judge: current published version of the agent of
-    // the setting evaluation.judge_agent, answer validated against
-    // src/Evaluation/verdict.schema.json.
+    // the setting evaluation.judge_agent, run by AgentRunner (agent.php)
+    // without rules and gates, answer validated against
+    // src/Evaluation/verdict.schema.json. The mapper and ChatService only
+    // build a runner when none is passed.
     $services->set(Judge::class)
         ->args([
             service(EvaluationSettingsInterface::class)->nullOnInvalid(),
@@ -136,6 +139,7 @@ return static function (ContainerConfigurator $container): void {
             service(VersionTurnMapper::class),
             service(ChatService::class),
             service('doctrine.orm.entity_manager'),
+            service(AgentRunner::class),
         ]);
 
     // POST /eval_results/{id}/evaluate (eval_result_evaluate): pending
@@ -210,3 +214,4 @@ return static function (ContainerConfigurator $container): void {
 };
 
 // - revised 2026-10-13
+// - revised 2026-11-27 (AgentRunner)
