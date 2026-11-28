@@ -29,6 +29,7 @@ use Dmstr\NeuronAiBundle\Agent\VersionTurnMapper;
 use Dmstr\NeuronAiBundle\Artifact\ArtifactAccessResolver;
 use Dmstr\NeuronAiBundle\Artifact\ArtifactToolkitFactory;
 use Dmstr\NeuronAiBundle\Chat\AgentChat;
+use Dmstr\NeuronAiBundle\Chat\AgentRunner;
 use Dmstr\NeuronAiBundle\Chat\ChatService;
 use Dmstr\NeuronAiBundle\Conversation\ConversationReferences;
 use Dmstr\NeuronAiBundle\Mcp\McpConnectionResolver;
@@ -146,11 +147,25 @@ return static function (ContainerConfigurator $container): void {
             service(ArtifactAccessResolver::class),
         ]);
 
+    // One stateless turn on an agent version without request, token or
+    // user: disabled and published checks, mapping, pre-answer rules and
+    // ChatService with the answer gates; used by AgentChat and the judge.
+    $services->set(AgentRunner::class)
+        ->args([
+            service(VersionTurnMapper::class),
+            service(ChatService::class),
+            service(IriConverterInterface::class),
+            // Freshness of the sources from the application's alias; no dates without one.
+            service(SourceFreshnessInterface::class)->nullOnInvalid(),
+        ]);
+
     // POST /agents/{id}/chat (agent_chat): one stateless turn on the
     // current version, or with `target: candidate` (neuronai:agent:chat_candidate,
     // checked in the processor) on the preview of the candidate (created by
-    // the token's user), mapped by VersionTurnMapper, run by ChatService.
+    // the token's user), run by AgentRunner.
     // One stateless turn on an agent: agent_chat and /v1/chat/completions.
+    // The first four and the seventh argument only build a runner when
+    // none is passed; the container passes its AgentRunner.
     $services->set(AgentChat::class)
         ->args([
             service(VersionTurnMapper::class),
@@ -159,8 +174,8 @@ return static function (ContainerConfigurator $container): void {
             service(AgentPreviewFactory::class),
             service('security.token_storage'),
             service('security.authorization_checker'),
-            // Freshness of the sources from the application's alias; no dates without one.
             service(SourceFreshnessInterface::class)->nullOnInvalid(),
+            service(AgentRunner::class),
         ]);
 
     $services->set(AgentChatProcessor::class)
@@ -183,3 +198,4 @@ return static function (ContainerConfigurator $container): void {
 
 // - revised 2026-11-19
 // - revised 2026-11-20
+// - revised 2026-11-27 (AgentRunner)

@@ -8,6 +8,8 @@ namespace Dmstr\NeuronAiBundle\Evaluation;
 
 use Dmstr\NeuronAiBundle\Agent\AgentReferenceResolver;
 use Dmstr\NeuronAiBundle\Agent\VersionTurnMapper;
+use Dmstr\NeuronAiBundle\Chat\AgentRunner;
+use Dmstr\NeuronAiBundle\Chat\AgentRunOptions;
 use Dmstr\NeuronAiBundle\Chat\ChatService;
 use Dmstr\NeuronAiBundle\Conversation\Gate\GateClose;
 use Dmstr\NeuronAiBundle\Conversation\MessageKind;
@@ -30,7 +32,8 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
  *    call time: a judge disabled since the evaluation was requested fails
  *    here);
  * 2. {@see VersionTurnMapper::map()} of that version (default language, no
- *    variables);
+ *    variables), through {@see AgentRunner::execute()} without the
+ *    version's pre-answer rules;
  * 3. {@see ChatService::chatConfigured()} with ONE user message
  *    ({@see self::prompt()}): question, expected answer, the transcript of
  *    the result's conversation ({@see self::transcript()}) and the verdict
@@ -55,13 +58,21 @@ final class Judge
     /** The setting that names the judge agent (section `evaluation`). */
     public const string SETTING = 'evaluation.judge_agent';
 
+    private readonly AgentRunner $runner;
+
+    /**
+     * Without $runner the runner is built from $mapper and $chatService;
+     * with one, those two are not used.
+     */
     public function __construct(
         private readonly ?EvaluationSettingsInterface $settings,
         private readonly AgentReferenceResolver $resolver,
-        private readonly VersionTurnMapper $mapper,
-        private readonly ChatService $chatService,
+        VersionTurnMapper $mapper,
+        ChatService $chatService,
         private readonly EntityManagerInterface $entityManager,
+        ?AgentRunner $runner = null,
     ) {
+        $this->runner = $runner ?? new AgentRunner($mapper, $chatService);
     }
 
     /**
@@ -105,9 +116,11 @@ final class Judge
 
         $started = hrtime(true);
         try {
-            $configuration = $this->mapper->map($version);
-            // Never the answer gates of the judge version.
-            $answer = $this->chatService->chatConfigured([['role' => 'user', 'content' => $content]], $configuration, gates: false);
+            // Default language, no variables; never the pre-answer rules or
+            // the answer gates of the judge version.
+            $run = $this->runner->execute($version, [['role' => 'user', 'content' => $content]], new AgentRunOptions(rules: false, gates: false));
+            $configuration = $run->configuration;
+            $answer = $run->chat ?? throw new \LogicException('A run without rules has a chat result.');
         } catch (\Throwable $e) {
             throw new JudgeException(JudgeVerdict::limit(\sprintf(
                 'The judge call (version %d of agent "%s") failed: %s',
@@ -210,3 +223,5 @@ final class Judge
         ));
     }
 }
+
+// - revised 2026-11-27 (run on AgentRunner)
