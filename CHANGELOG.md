@@ -4,7 +4,7 @@
 
 All notable changes to this bundle. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/) and come from the Git tags.
 
-## [Unreleased]
+## [0.2.0] - 2026-11-28
 
 ### Added
 
@@ -48,4 +48,5 @@ Initial public release.
 - `symfony/lock` is required (no longer optional): the creation limit of anonymous conversations, the artifact quota and the `neuron` schedule use `lock.factory`.
 - Suggested: `phpunit/phpunit` for the test helpers in `src/Testing/`, `dmstr/mcp-endpoint-bundle` for the RAG tools, `lexik/jwt-authentication-bundle` for JWT authentication next to capability tokens.
 
+[0.2.0]: https://github.com/dmstr/neuron-ai-bundle/releases/tag/0.2.0
 [0.1.0]: https://github.com/dmstr/neuron-ai-bundle/releases/tag/0.1.0
